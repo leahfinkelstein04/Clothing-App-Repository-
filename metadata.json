@@ -1,0 +1,10 @@
+{
+  "name": "Occasion Scout",
+  "description": "Find the right store for the moment. An original fashion-editorial store finder powered by Gemini AI and browser GPS.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
