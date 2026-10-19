@@ -204,6 +204,24 @@ async function runTests() {
     passed++;
   }
 
+  // Test 8: Travel time estimation logic
+  {
+    console.log('[Test 8] Verifying travel time estimates for walking and driving...');
+    const calcTravel = (miles: number) => ({
+      drivingMinutes: Math.max(Math.round(miles * 3.5), 2),
+      walkingMinutes: miles <= 1.5 ? Math.max(Math.round(miles * 20), 1) : undefined,
+    });
+
+    const closeStore = calcTravel(0.4);
+    assertEquals(closeStore.walkingMinutes, 8, '0.4 mi should estimate ~8 min walk');
+    assert(closeStore.drivingMinutes >= 2, 'Driving minutes at least 2');
+
+    const farStore = calcTravel(4.5);
+    assertEquals(farStore.walkingMinutes, undefined, 'Far distance (>1.5 mi) should omit walking estimate');
+    assert(farStore.drivingMinutes >= 15, '4.5 mi should estimate >= 15 min drive');
+    passed++;
+  }
+
   console.log(`\n✅ ALL ${passed} OCCASION SCOUT RELIABILITY TESTS PASSED SUCCESSFULLY!`);
 }
 

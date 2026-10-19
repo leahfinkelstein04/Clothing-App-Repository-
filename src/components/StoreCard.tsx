@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ExternalLink,
   Navigation,
@@ -8,6 +8,11 @@ import {
   MapPin,
   Sparkles,
   Phone,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Footprints,
+  Car,
 } from 'lucide-react';
 import type { RankedStoreRecommendation } from '../shared/types.ts';
 import { formatDistanceMiles } from '../shared/geo.ts';
@@ -15,22 +20,36 @@ import { formatDistanceMiles } from '../shared/geo.ts';
 interface StoreCardProps {
   store: RankedStoreRecommendation;
   isSaved: boolean;
+  isSelected?: boolean;
   onToggleSave: (store: RankedStoreRecommendation) => void;
+  onSelect?: (store: RankedStoreRecommendation) => void;
   index: number;
 }
 
 export const StoreCard: React.FC<StoreCardProps> = ({
   store,
   isSaved,
+  isSelected,
   onToggleSave,
+  onSelect,
   index,
 }) => {
+  const [showAssociateTip, setShowAssociateTip] = useState(false);
+
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
     `${store.storeName}, ${store.address}`
   )}&destination_place_id=${store.placeId}`;
 
   return (
-    <article className="group bg-white border border-[#DCDAD5] hover:border-[#161616] p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 relative shadow-xs">
+    <article
+      id={`store-card-${store.placeId}`}
+      onClick={() => onSelect && onSelect(store)}
+      className={`group bg-white border p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 relative shadow-xs cursor-default ${
+        isSelected
+          ? 'border-[#161616] ring-1 ring-[#161616]'
+          : 'border-[#DCDAD5] hover:border-[#161616]'
+      }`}
+    >
       <div>
         {/* Top Header: Editorial Match Title & Fit Index */}
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#F7F6F3]">
@@ -57,7 +76,10 @@ export const StoreCard: React.FC<StoreCardProps> = ({
             {/* Bookmark button */}
             <button
               type="button"
-              onClick={() => onToggleSave(store)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSave(store);
+              }}
               className={`p-2 border transition-colors ${
                 isSaved
                   ? 'border-[#161616] bg-[#161616] text-white'
@@ -81,6 +103,27 @@ export const StoreCard: React.FC<StoreCardProps> = ({
             <span className="font-mono font-semibold text-[#161616]">
               {formatDistanceMiles(store.distanceMiles)} away
             </span>
+
+            {/* Estimated Travel */}
+            {store.estimatedTravel && (
+              <>
+                <span aria-hidden="true" className="text-[#DCDAD5]">·</span>
+                <span className="inline-flex items-center gap-1 font-mono text-[#777777]">
+                  {store.estimatedTravel.walkingMinutes ? (
+                    <>
+                      <Footprints className="w-3 h-3" />
+                      <span>~{store.estimatedTravel.walkingMinutes} min walk</span>
+                    </>
+                  ) : (
+                    <>
+                      <Car className="w-3 h-3" />
+                      <span>~{store.estimatedTravel.drivingMinutes} min drive</span>
+                    </>
+                  )}
+                </span>
+              </>
+            )}
+
             <span aria-hidden="true" className="text-[#DCDAD5]">·</span>
             <span className="truncate max-w-xs sm:max-w-md">{store.address}</span>
           </div>
@@ -120,6 +163,36 @@ export const StoreCard: React.FC<StoreCardProps> = ({
               {store.whatToLookFor}
             </p>
           </div>
+
+          {/* Interactive Styling Brief for Associate */}
+          {store.associatePrompt && (
+            <div className="pt-2 border-t border-[#DCDAD5]/60">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAssociateTip((prev) => !prev);
+                }}
+                className="text-[11px] font-mono tracking-wider uppercase text-[#555555] hover:text-[#161616] flex items-center justify-between w-full transition-colors pt-0.5"
+              >
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3 h-3 text-[#161616]" />
+                  <span>What to ask the store associate</span>
+                </span>
+                {showAssociateTip ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {showAssociateTip && (
+                <div className="mt-2 p-2.5 bg-white border border-[#DCDAD5] text-xs text-[#333333] italic leading-relaxed animate-in fade-in duration-150">
+                  "{store.associatePrompt}"
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -131,6 +204,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
               href={store.websiteUri}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#161616] hover:underline"
             >
               <span>Visit Website</span>
@@ -145,6 +219,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
               <span className="text-[#DCDAD5]">·</span>
               <a
                 href={`tel:${store.nationalPhoneNumber}`}
+                onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 text-xs text-[#555555] hover:text-[#161616]"
               >
                 <Phone className="w-3 h-3" />
@@ -159,6 +234,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
           href={directionsUrl}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium tracking-wider uppercase bg-[#161616] text-white hover:bg-[#333333] transition-colors shrink-0"
         >
           <Navigation className="w-3.5 h-3.5" />

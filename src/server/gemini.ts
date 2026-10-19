@@ -52,8 +52,17 @@ function formatPriceLevel(
   }
 }
 
+function calculateTravelTimes(distanceMiles: number) {
+  const drivingMinutes = Math.max(Math.round(distanceMiles * 3.5), 2);
+  const walkingMinutes = distanceMiles <= 1.5 ? Math.max(Math.round(distanceMiles * 20), 1) : undefined;
+  return {
+    drivingMinutes,
+    walkingMinutes,
+  };
+}
+
 /**
- * Step 1: Interpret occasion, style, formality, and generate store-search queries
+ * Step 1: Interpret occasion, style, formality, color palette, and store search queries
  */
 export async function analyzeOccasionIntent(params: {
   occasion: string;
@@ -77,75 +86,107 @@ Analyze the user's event description and parameters:
 
 Instructions:
 1. Accurately interpret the event even with typos (e.g. "semi formel weddng", "job intervew", "festivl").
-2. Determine the formality level (e.g., Casual, Smart Casual, Business Formal, Cocktail, Black Tie Optional, Resort Chic).
+2. Determine the formality level (e.g., Casual Elevated, Smart Casual, Business Formal, Cocktail, Black Tie Optional, Resort Chic).
 3. If seasonal or weather context is mentioned (e.g., "in November", "hot summer evening in Miami"), note it; if not mentioned, leave seasonalContext empty or neutral.
 4. Provide 3-5 authentic physical store categories (e.g. "Contemporary Boutiques", "Tailored Suit Specialists", "Luxury Department Stores", "Curated Vintage").
-5. Provide 3-5 concise style keywords.
-6. Provide 2-4 search queries for Google Places discovery (e.g., "women's cocktail dress boutique", "men's tailored suits", "designer clothing store").
+5. Provide 3-5 concise style keywords (e.g., "Sculptural", "Refined", "Muted Neutrals").
+6. Provide 2-3 search queries for Google Places discovery (e.g., "women's cocktail dress boutique", "men's tailored suits", "designer clothing store").
+7. Provide 3-4 sophisticated color palette swatches suitable for this event and season, with clean hex color codes and poetic fashion names (e.g. "Warm Taupe" #A79A8C, "Espresso" #3B2F2F, "Slate Navy" #1E293B, "Ivory" #F7F6F3).
+8. Provide 3 key silhouettes or garment cuts (e.g., "Midi A-line dress", "Structured tailored blazer", "High-waisted fluid trousers").
+9. Provide 3 related occasions or event variations for fast pivoting (e.g., "Rehearsal Dinner", "Welcome Cocktails", "Farewell Brunch").
 
 Output must be strict JSON matching the schema.
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
-    contents: prompt,
-    config: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          interpretedOccasion: {
-            type: Type.STRING,
-            description: 'Clear, polished interpretation of the event',
-          },
-          formalityLevel: {
-            type: Type.STRING,
-            description: 'E.g., Cocktail / Semi-Formal, Casual Elevated, Black Tie',
-          },
-          seasonalContext: {
-            type: Type.STRING,
-            description: 'Seasonal or climate nuances if specified, or empty string',
-          },
-          recommendedStoreTypes: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: 'Types of retail stores suitable for this occasion',
-          },
-          styleKeywords: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: 'Key aesthetic descriptors',
-          },
-          searchTerms: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: 'Keywords for Places API store discovery',
-          },
-        },
-        required: [
-          'interpretedOccasion',
-          'formalityLevel',
-          'recommendedStoreTypes',
-          'styleKeywords',
-          'searchTerms',
-        ],
-      },
-    },
-  });
-
-  const text = response.text?.trim() || '{}';
   try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            interpretedOccasion: {
+              type: Type.STRING,
+              description: 'Clear, polished interpretation of the event',
+            },
+            formalityLevel: {
+              type: Type.STRING,
+              description: 'E.g., Cocktail / Semi-Formal, Casual Elevated, Black Tie',
+            },
+            seasonalContext: {
+              type: Type.STRING,
+              description: 'Seasonal or climate nuances if specified, or empty string',
+            },
+            recommendedStoreTypes: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Types of retail stores suitable for this occasion',
+            },
+            styleKeywords: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Key aesthetic descriptors',
+            },
+            searchTerms: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Keywords for Places API store discovery',
+            },
+            colorPalette: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  hex: { type: Type.STRING },
+                },
+                required: ['name', 'hex'],
+              },
+              description: 'Curated 3-4 color swatches for the event',
+            },
+            keySilhouettes: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: '3 recommended silhouettes or garment cuts',
+            },
+            relatedOccasions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: '3 related events or weekend companion functions',
+            },
+          },
+          required: [
+            'interpretedOccasion',
+            'formalityLevel',
+            'recommendedStoreTypes',
+            'styleKeywords',
+            'searchTerms',
+          ],
+        },
+      },
+    });
+
+    const text = response.text?.trim() || '{}';
     const parsed = JSON.parse(text) as OccasionAnalysis;
     return parsed;
   } catch (err) {
-    console.error('Failed to parse occasion analysis JSON:', text, err);
+    console.error('Failed to parse occasion analysis JSON:', err);
     return {
       interpretedOccasion: params.occasion,
       formalityLevel: 'Smart Casual / Versatile',
       recommendedStoreTypes: ['Clothing Boutiques', 'Department Stores', 'Apparel Retailers'],
       styleKeywords: ['Versatile', 'Tailored', 'Contemporary'],
       searchTerms: ['clothing store', 'fashion boutique'],
+      colorPalette: [
+        { name: 'Ivory', hex: '#F7F6F3' },
+        { name: 'Near Black', hex: '#161616' },
+        { name: 'Warm Taupe', hex: '#A79A8C' },
+      ],
+      keySilhouettes: ['Tailored jacket', 'Midi silhouette', 'Clean-line separates'],
+      relatedOccasions: ['Cocktail Reception', 'Celebratory Dinner', 'Evening Gathering'],
     };
   }
 }
@@ -207,6 +248,7 @@ STRICT RULES:
    - 'whatToLookFor': Concise list of 2-3 specific garment/item types to shop for (e.g., "Cocktail midi dresses, sculptural earrings, block heels").
    - 'suitabilityScore': Integer from 40 to 98 based on how well the store matches the formality and style.
    - 'retailCategory': A clean retail categorization (e.g., "Designer Boutique", "Men's Tailoring", "Contemporary Department Store", "Vintage Consignment").
+   - 'associatePrompt': A helpful 1-sentence phrasing for what to tell the retail associate upon walking in (e.g., "Ask for: Tailored blazers in midweight wool with high-waisted trousers, or cocktail midi dresses.").
 4. Label uncertainty: NEVER claim a specific product, brand, color, size, or price is currently in stock. Frame your advice around what the store typically carries.
 `;
 
@@ -228,6 +270,7 @@ STRICT RULES:
               whyItFits: { type: Type.STRING },
               whatToLookFor: { type: Type.STRING },
               retailCategory: { type: Type.STRING },
+              associatePrompt: { type: Type.STRING },
             },
             required: [
               'placeId',
@@ -250,6 +293,7 @@ STRICT RULES:
       whyItFits: string;
       whatToLookFor: string;
       retailCategory: string;
+      associatePrompt?: string;
     }>;
 
     // Build map of authentic discovered places
@@ -289,6 +333,8 @@ STRICT RULES:
         userRatingCount: realStore.userRatingCount,
         lat: realStore.lat,
         lng: realStore.lng,
+        associatePrompt: r.associatePrompt || `Ask for pieces suitable for ${analysis.interpretedOccasion}.`,
+        estimatedTravel: calculateTravelTimes(realStore.distanceMiles),
       });
     }
 
@@ -312,6 +358,8 @@ STRICT RULES:
           userRatingCount: place.userRatingCount,
           lat: place.lat,
           lng: place.lng,
+          associatePrompt: `Ask the sales associate for versatile selections for ${analysis.interpretedOccasion}.`,
+          estimatedTravel: calculateTravelTimes(place.distanceMiles),
         });
       }
     }
@@ -328,7 +376,6 @@ STRICT RULES:
   } catch (err) {
     console.error('Error during Gemini store ranking, falling back to heuristic ranking:', err);
 
-    // Graceful fallback to verified stores
     return discoveredStores.map((s, idx) => ({
       placeId: s.id,
       storeName: s.name,
@@ -346,6 +393,8 @@ STRICT RULES:
       userRatingCount: s.userRatingCount,
       lat: s.lat,
       lng: s.lng,
+      associatePrompt: `Ask for styling advice for ${analysis.interpretedOccasion}.`,
+      estimatedTravel: calculateTravelTimes(s.distanceMiles),
     }));
   }
 }

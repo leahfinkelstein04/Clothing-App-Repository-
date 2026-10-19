@@ -275,6 +275,12 @@ export default function App() {
               onToggleSave={handleToggleSave}
               onExpandRadius={handleExpandRadius}
               onRetry={() => handleScoutSubmit()}
+              onSwitchOccasion={(newOccasion) => {
+                setOccasion(newOccasion);
+                setTimeout(() => {
+                  handleScoutSubmit();
+                }, 50);
+              }}
             />
           </div>
         )}

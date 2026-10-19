@@ -90,6 +90,16 @@ export interface RankedStoreRecommendation {
   userRatingCount?: number;
   lat: number;
   lng: number;
+  associatePrompt?: string; // What to ask the store sales associate
+  estimatedTravel?: {
+    walkingMinutes?: number;
+    drivingMinutes: number;
+  };
+}
+
+export interface ColorSwatch {
+  name: string;
+  hex: string;
 }
 
 export interface OccasionAnalysis {
@@ -99,6 +109,9 @@ export interface OccasionAnalysis {
   recommendedStoreTypes: string[];
   styleKeywords: string[];
   searchTerms: string[];
+  colorPalette?: ColorSwatch[];
+  keySilhouettes?: string[];
+  relatedOccasions?: string[];
 }
 
 export interface ScoutSearchResponse {
