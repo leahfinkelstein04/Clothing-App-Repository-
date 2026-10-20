@@ -23,6 +23,7 @@ interface StoreCardProps {
   isSelected?: boolean;
   onToggleSave: (store: RankedStoreRecommendation) => void;
   onSelect?: (store: RankedStoreRecommendation) => void;
+  onShare?: (store: RankedStoreRecommendation) => void;
   index: number;
 }
 
@@ -32,6 +33,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
   isSelected,
   onToggleSave,
   onSelect,
+  onShare,
   index,
 }) => {
   const [showAssociateTip, setShowAssociateTip] = useState(false);
@@ -72,6 +74,22 @@ export const StoreCard: React.FC<StoreCardProps> = ({
                 Suitability
               </span>
             </div>
+
+            {/* Share button */}
+            {onShare && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(store);
+                }}
+                className="p-2 border border-[#DCDAD5] bg-transparent text-[#555555] hover:border-[#161616] hover:text-[#161616] transition-colors"
+                aria-label="Share store"
+                title="Share this store"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Bookmark button */}
             <button

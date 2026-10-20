@@ -222,6 +222,28 @@ async function runTests() {
     passed++;
   }
 
+  // Test 9: Shareable Deep-Link URL Parameter Construction & Parsing
+  {
+    console.log('[Test 9] Verifying shareable deep-link URL encoding and decoding...');
+    const baseUrl = 'https://occasion-scout.app';
+    const params = new URLSearchParams({
+      occasion: 'An outdoor wedding in November',
+      lat: '29.9511',
+      lng: '-90.0715',
+      radius: '5',
+      loc: 'French Quarter, New Orleans, LA',
+    });
+    const generatedUrl = `${baseUrl}/?${params.toString()}`;
+
+    const parsed = new URL(generatedUrl);
+    assertEquals(parsed.searchParams.get('occasion'), 'An outdoor wedding in November', 'Decoded occasion must match');
+    assertEquals(parsed.searchParams.get('lat'), '29.9511', 'Decoded lat must match');
+    assertEquals(parsed.searchParams.get('lng'), '-90.0715', 'Decoded lng must match');
+    assertEquals(parsed.searchParams.get('radius'), '5', 'Decoded radius must match');
+    assertEquals(parsed.searchParams.get('loc'), 'French Quarter, New Orleans, LA', 'Decoded location label must match');
+    passed++;
+  }
+
   console.log(`\n✅ ALL ${passed} OCCASION SCOUT RELIABILITY TESTS PASSED SUCCESSFULLY!`);
 }
 

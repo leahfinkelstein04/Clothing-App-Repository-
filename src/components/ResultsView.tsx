@@ -10,11 +10,13 @@ import {
   Map,
   FileText,
   Layers,
+  Share2,
 } from 'lucide-react';
 import type { RankedStoreRecommendation, ScoutSearchResponse } from '../shared/types.ts';
 import { StoreCard } from './StoreCard.tsx';
 import { EditorialMapView } from './EditorialMapView.tsx';
 import { DossierExportModal } from './DossierExportModal.tsx';
+import { ShareModal } from './ShareModal.tsx';
 
 interface ResultsViewProps {
   data: ScoutSearchResponse;
@@ -40,6 +42,8 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const [filterBy, setFilterBy] = useState<CategoryFilter>('all');
   const [showRadarMap, setShowRadarMap] = useState(false);
   const [showDossierModal, setShowDossierModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [singleStoreToShare, setSingleStoreToShare] = useState<RankedStoreRecommendation | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(undefined);
 
   // Filter and sort recommendations
@@ -282,6 +286,20 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             <span>Style Dossier</span>
           </button>
 
+          {/* Share Recommendations CTA */}
+          <button
+            type="button"
+            onClick={() => {
+              setSingleStoreToShare(null);
+              setShowShareModal(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#DCDAD5] bg-white text-[#161616] hover:border-[#161616] transition-colors"
+            title="Share deep-link or text summary"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Share</span>
+          </button>
+
           {/* Filter tabs */}
           <div className="flex items-center gap-1 p-1 bg-white border border-[#DCDAD5] text-xs">
             <button
@@ -367,6 +385,10 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             isSaved={savedStoreIds.has(store.placeId)}
             onToggleSave={onToggleSave}
             onSelect={() => setSelectedStoreId(store.placeId)}
+            onShare={(s) => {
+              setSingleStoreToShare(s);
+              setShowShareModal(true);
+            }}
           />
         ))}
       </div>
@@ -392,6 +414,17 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         isOpen={showDossierModal}
         onClose={() => setShowDossierModal(false)}
         data={data}
+      />
+
+      {/* Share Modal (Deep-Link & Formatted Text Summary) */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setSingleStoreToShare(null);
+        }}
+        data={data}
+        singleStore={singleStoreToShare}
       />
     </section>
   );

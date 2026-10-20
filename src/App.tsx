@@ -100,10 +100,27 @@ export default function App() {
     setCategoryPreference('any');
   };
 
-  // Main search scout handler
-  const handleScoutSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!occasion.trim()) return;
+  // Generalized search executor
+  const executeSearch = async (override?: {
+    occasion?: string;
+    location?: SearchCoordinates;
+    radius?: 1 | 3 | 5 | 10 | 25;
+    clothing?: ClothingFocus;
+    style?: StyleVibe;
+    dressCode?: string;
+    budget?: BudgetTier;
+    category?: RetailCategoryPreference;
+  }) => {
+    const activeOccasion = (override?.occasion ?? occasion).trim();
+    if (!activeOccasion) return;
+
+    const activeLoc = override?.location ?? location;
+    const activeRadius = override?.radius ?? radiusMiles;
+    const activeClothing = override?.clothing ?? clothingFocus;
+    const activeStyle = override?.style ?? style;
+    const activeDressCode = override?.dressCode ?? dressCode;
+    const activeBudget = override?.budget ?? budget;
+    const activeCategory = override?.category ?? categoryPreference;
 
     setError(null);
     setIsLoading(true);
@@ -111,16 +128,16 @@ export default function App() {
 
     try {
       const payload: ScoutSearchRequest = {
-        occasion: occasion.trim(),
-        lat: location.lat,
-        lng: location.lng,
-        radiusMiles,
-        locationLabel: location.label,
-        clothingFocus,
-        style,
-        dressCode: dressCode.trim() || undefined,
-        budget,
-        categoryPreference,
+        occasion: activeOccasion,
+        lat: activeLoc.lat,
+        lng: activeLoc.lng,
+        radiusMiles: activeRadius,
+        locationLabel: activeLoc.label,
+        clothingFocus: activeClothing,
+        style: activeStyle,
+        dressCode: activeDressCode.trim() || undefined,
+        budget: activeBudget,
+        categoryPreference: activeCategory,
       };
 
       // Progress step timer simulation for smooth UX
@@ -149,10 +166,35 @@ export default function App() {
 
       setResultsData(data as ScoutSearchResponse);
 
+      // Update URL query parameters for instant shareability/refresh
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('occasion', activeOccasion);
+        url.searchParams.set('lat', activeLoc.lat.toString());
+        url.searchParams.set('lng', activeLoc.lng.toString());
+        url.searchParams.set('radius', activeRadius.toString());
+        if (activeLoc.label) {
+          url.searchParams.set('loc', activeLoc.label);
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // Ignore URL replace errors in hermetic environments
+      }
+
       // Smooth scroll down to results
       setTimeout(() => {
+        // Check if there was a specific store in the URL to target
+        const params = new URLSearchParams(window.location.search);
+        const storeTargetId = params.get('store');
+        if (storeTargetId) {
+          const storeElement = document.getElementById(`store-card-${storeTargetId}`);
+          if (storeElement) {
+            storeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        }
         resultsRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      }, 150);
     } catch (err: unknown) {
       setError((err as Error).message || 'An unexpected error occurred while scouting.');
     } finally {
@@ -161,11 +203,76 @@ export default function App() {
     }
   };
 
+  // Main search scout handler from form
+  const handleScoutSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    executeSearch();
+  };
+
+  // Parse deep-link URL parameters on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const occasionParam = params.get('occasion');
+      const latParam = params.get('lat');
+      const lngParam = params.get('lng');
+      const radiusParam = params.get('radius');
+      const locParam = params.get('loc');
+      const clothingParam = params.get('clothing') as ClothingFocus | null;
+      const styleParam = params.get('style') as StyleVibe | null;
+      const budgetParam = params.get('budget') as BudgetTier | null;
+      const categoryParam = params.get('category') as RetailCategoryPreference | null;
+      const dressCodeParam = params.get('dressCode');
+
+      if (occasionParam) {
+        setOccasion(occasionParam);
+
+        let parsedLoc = location;
+        if (latParam && lngParam && !isNaN(Number(latParam)) && !isNaN(Number(lngParam))) {
+          parsedLoc = {
+            lat: Number(latParam),
+            lng: Number(lngParam),
+            label: locParam || `${Number(latParam).toFixed(3)}, ${Number(lngParam).toFixed(3)}`,
+            source: 'manual',
+          };
+          setLocation(parsedLoc);
+        }
+
+        let parsedRadius = radiusMiles;
+        if (radiusParam && [1, 3, 5, 10, 25].includes(Number(radiusParam))) {
+          parsedRadius = Number(radiusParam) as 1 | 3 | 5 | 10 | 25;
+          setRadiusMiles(parsedRadius);
+        }
+
+        if (clothingParam) setClothingFocus(clothingParam);
+        if (styleParam) setStyle(styleParam);
+        if (budgetParam) setBudget(budgetParam);
+        if (categoryParam) setCategoryPreference(categoryParam);
+        if (dressCodeParam) setDressCode(dressCodeParam);
+
+        // Auto-execute search from deep-link
+        executeSearch({
+          occasion: occasionParam,
+          location: parsedLoc,
+          radius: parsedRadius,
+          clothing: clothingParam || 'any',
+          style: styleParam || 'any',
+          budget: budgetParam || 'any',
+          category: categoryParam || 'any',
+          dressCode: dressCodeParam || '',
+        });
+      }
+    } catch (err) {
+      console.warn('Error reading deep-link search parameters:', err);
+    }
+  }, []);
+
   const handleExpandRadius = (newRadius: 1 | 3 | 5 | 10 | 25) => {
     setRadiusMiles(newRadius);
-    // Automatically re-run search with expanded radius
     setTimeout(() => {
-      handleScoutSubmit();
+      executeSearch({ radius: newRadius });
     }, 50);
   };
 
@@ -207,7 +314,7 @@ export default function App() {
               setRadiusMiles(r);
               // If results already exist, user expects radius change to update discovery
               if (resultsData) {
-                setTimeout(() => handleScoutSubmit(), 50);
+                setTimeout(() => executeSearch({ radius: r }), 50);
               }
             }}
           />
@@ -241,7 +348,7 @@ export default function App() {
                 <p className="text-sm font-medium">{error}</p>
                 <button
                   type="button"
-                  onClick={() => handleScoutSubmit()}
+                  onClick={() => executeSearch()}
                   className="text-xs font-semibold text-red-800 underline hover:text-red-950"
                 >
                   Retry Search
@@ -274,11 +381,11 @@ export default function App() {
               savedStoreIds={new Set(savedStores.map((s) => s.placeId))}
               onToggleSave={handleToggleSave}
               onExpandRadius={handleExpandRadius}
-              onRetry={() => handleScoutSubmit()}
+              onRetry={() => executeSearch()}
               onSwitchOccasion={(newOccasion) => {
                 setOccasion(newOccasion);
                 setTimeout(() => {
-                  handleScoutSubmit();
+                  executeSearch({ occasion: newOccasion });
                 }, 50);
               }}
             />

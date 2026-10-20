@@ -46,6 +46,12 @@ Someone has an event coming up—an outdoor wedding in November, a corporate fin
    - External turn-by-turn directions linking directly to Google Maps or Apple Maps.
    - Local browser storage bookmarking without requiring accounts, sign-ups, or personal data collection.
 
+7. **Deep-Link Sharing & Messaging Summary**
+   - **Shareable Deep-Links:** Encodes the occasion, geographic coordinates, search center, radius, and filters into a clean URL. Anyone opening the link automatically runs the exact search without an account.
+   - **Text Summary for Messaging:** Generates a clean, formatted plain-text briefing of the top stores, addresses, and styling advice ready to paste into iMessage, WhatsApp, Notes, Slack, or email.
+   - **Web Share Sheet Integration:** Leverages the native device share sheet on iOS Safari and Android Chrome for seamless sharing.
+   - **Per-Store Sharing:** Individual stores can be shared directly with friends via a 1-tap share button on each card.
+
 ---
 
 ## Architecture & Tech Stack
