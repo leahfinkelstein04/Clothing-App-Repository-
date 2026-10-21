@@ -28,9 +28,15 @@ export const LocationControl: React.FC<LocationControlProps> = ({
   const [isGpsLocating, setIsGpsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Handle GPS location request via browser navigator.geolocation
+  // Handle GPS location request with iPhone Safari resilience
   const handleUseMyLocation = () => {
     setLocationError(null);
+
+    // Check secure context for iOS Safari
+    if (typeof window !== 'undefined' && !window.isSecureContext && window.location.hostname !== 'localhost' && window.location.protocol !== 'https:') {
+      setLocationError('iOS Safari requires a secure HTTPS connection to access device location. You can enter your city or ZIP code manually below.');
+      return;
+    }
 
     if (!('geolocation' in navigator)) {
       setLocationError('Geolocation is not supported by your browser. Please enter a city or ZIP code below.');
@@ -39,57 +45,80 @@ export const LocationControl: React.FC<LocationControlProps> = ({
 
     setIsGpsLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        let label = `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
+    // Apply acquired position immediately without blocking on reverse geocode
+    const handleSuccess = (position: GeolocationPosition) => {
+      const { latitude, longitude } = position.coords;
+      const initialLabel = `Location (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`;
 
-        try {
-          // Reverse geocode to get human-friendly label
-          const res = await fetch(`/api/geocode`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: `${latitude},${longitude}` }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.formattedAddress) {
-              label = data.formattedAddress;
-            }
+      // 1. Immediately update active search center so UI is instantly unblocked
+      onLocationChange({
+        lat: latitude,
+        lng: longitude,
+        label: initialLabel,
+        source: 'gps',
+      });
+      setIsGpsLocating(false);
+
+      // 2. Asynchronously retrieve clean street address / neighborhood
+      fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: latitude, lng: longitude }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.formattedAddress) {
+            onLocationChange({
+              lat: latitude,
+              lng: longitude,
+              label: data.formattedAddress,
+              source: 'gps',
+            });
           }
-        } catch {
-          // Keep coordinate string as fallback
-        }
-
-        onLocationChange({
-          lat: latitude,
-          lng: longitude,
-          label: label || 'My Current Location',
-          source: 'gps',
+        })
+        .catch(() => {
+          // Keep coordinates as fallback label
         });
-        setIsGpsLocating(false);
-      },
-      (error) => {
-        setIsGpsLocating(false);
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            setLocationError('Location permission denied in browser. You can type any city, ZIP, or street address below.');
-            break;
-          case error.POSITION_UNAVAILABLE:
-            setLocationError('Location information is unavailable. Please enter your city or ZIP manually.');
-            break;
-          case error.TIMEOUT:
-            setLocationError('Location request timed out. Please enter your city or ZIP code.');
-            break;
-          default:
-            setLocationError('Could not acquire GPS location. Please enter a city or ZIP manually.');
-            break;
+    };
+
+    // Stage 1: Try balanced standard accuracy first (fastest on iPhone indoors & cellular)
+    navigator.geolocation.getCurrentPosition(
+      handleSuccess,
+      (err1) => {
+        // If timed out or unavailable, attempt stage 2 high-accuracy fallback
+        if (err1.code === err1.TIMEOUT || err1.code === err1.POSITION_UNAVAILABLE) {
+          navigator.geolocation.getCurrentPosition(
+            handleSuccess,
+            (err2) => {
+              setIsGpsLocating(false);
+              if (err2.code === err2.PERMISSION_DENIED || err1.code === err1.PERMISSION_DENIED) {
+                setLocationError(
+                  'Location access is blocked. On iPhone: check Settings > Privacy > Location Services > Safari (or your browser) > While Using the App. Or enter your city/ZIP below.'
+                );
+              } else {
+                setLocationError('Could not determine GPS coordinates. Please enter your city, neighborhood, or ZIP code manually.');
+              }
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 60000,
+            }
+          );
+        } else if (err1.code === err1.PERMISSION_DENIED) {
+          setIsGpsLocating(false);
+          setLocationError(
+            'Location access is blocked. On iPhone: check Settings > Privacy > Location Services > Safari (or your browser) > While Using the App. Or enter your city/ZIP below.'
+          );
+        } else {
+          setIsGpsLocating(false);
+          setLocationError('Could not determine GPS coordinates. Please enter your city or ZIP code manually.');
         }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        enableHighAccuracy: false, // Fast Wi-Fi/Cellular lock on iPhone
+        timeout: 15000,
+        maximumAge: 180000,
       }
     );
   };
@@ -190,13 +219,13 @@ export const LocationControl: React.FC<LocationControlProps> = ({
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
                 placeholder="e.g. French Quarter, New Orleans or 70130"
-                className="w-full bg-[#F7F6F3] border border-[#DCDAD5] px-3.5 py-2.5 text-sm text-[#161616] placeholder-[#888888] focus:outline-none focus:border-[#161616] transition-colors"
+                className="w-full bg-[#F7F6F3] border border-[#DCDAD5] px-3.5 py-2.5 text-base sm:text-sm text-[#161616] placeholder-[#888888] focus:outline-none focus:border-[#161616] transition-colors"
               />
             </div>
             <button
               type="submit"
               disabled={isGeocoding || !manualInput.trim()}
-              className="px-4 py-2.5 text-xs font-medium tracking-wider uppercase bg-[#161616] text-white hover:bg-[#333333] transition-colors disabled:opacity-40 shrink-0 flex items-center gap-1.5"
+              className="px-4 py-2.5 text-xs font-medium tracking-wider uppercase bg-[#161616] text-white hover:bg-[#333333] transition-colors disabled:opacity-40 shrink-0 flex items-center gap-1.5 min-h-[42px]"
             >
               {isGeocoding ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -225,10 +254,10 @@ export const LocationControl: React.FC<LocationControlProps> = ({
                   key={r}
                   type="button"
                   onClick={() => onRadiusChange(r)}
-                  className={`py-1.5 text-xs font-medium transition-colors ${
+                  className={`py-2 sm:py-1.5 text-xs font-medium transition-colors flex items-center justify-center min-h-[38px] ${
                     active
                       ? 'bg-[#161616] text-white shadow-xs'
-                      : 'text-[#555555] hover:text-[#161616] hover:bg-white/60'
+                      : 'text-[#555555] hover:text-[#161616] hover:bg-white/60 active:bg-gray-200'
                   }`}
                   aria-pressed={active}
                 >

@@ -15,7 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   onScrollToSearch,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-[#F7F6F3]/95 backdrop-blur-md border-b border-[#DCDAD5] transition-colors">
+    <header className="sticky top-0 z-40 bg-[#F7F6F3]/95 backdrop-blur-md border-b border-[#DCDAD5] transition-colors pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
         {/* Zone 1: Brand Wordmark with original custom hanger-pin SVG */}
         <a

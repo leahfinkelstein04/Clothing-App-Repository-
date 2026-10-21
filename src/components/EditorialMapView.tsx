@@ -148,6 +148,10 @@ export const EditorialMapView: React.FC<EditorialMapViewProps> = ({
                 key={pt.placeId}
                 className="cursor-pointer transition-transform duration-200"
                 onClick={() => onSelectStore(pt)}
+                onTouchStart={() => {
+                  setHoveredStoreId(pt.placeId);
+                  onSelectStore(pt);
+                }}
                 onMouseEnter={() => setHoveredStoreId(pt.placeId)}
                 onMouseLeave={() => setHoveredStoreId(null)}
               >

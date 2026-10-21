@@ -277,7 +277,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F6F3] text-[#161616]">
+    <div className="min-h-screen min-h-[100dvh] flex flex-col bg-[#F7F6F3] text-[#161616]">
       {/* Tier 1 / Tier 2 Demo Key Quota Defense Banner */}
       <QuotaBanner />
 

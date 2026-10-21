@@ -7,7 +7,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenGuide, onOpenSaved }) => {
   return (
-    <footer className="mt-20 border-t border-[#DCDAD5] bg-white py-12 text-[#555555]">
+    <footer className="mt-20 border-t border-[#DCDAD5] bg-white pt-12 pb-[calc(3rem+env(safe-area-inset-bottom))] text-[#555555]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-8 border-b border-[#F7F6F3]">
           <div>

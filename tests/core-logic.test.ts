@@ -244,6 +244,32 @@ async function runTests() {
     passed++;
   }
 
+  // Test 10: Mobile GPS coordinate string regex and validation
+  {
+    console.log('[Test 10] Verifying coordinate string regex for reverse geocoding...');
+    const coordRegex = /^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/;
+    const testCases = [
+      { input: '29.9511,-90.0715', expectedLat: 29.9511, expectedLng: -90.0715 },
+      { input: '40.7128, -74.0060', expectedLat: 40.7128, expectedLng: -74.0060 },
+      { input: '-33.8688, 151.2093', expectedLat: -33.8688, expectedLng: 151.2093 },
+    ];
+
+    for (const tc of testCases) {
+      const match = tc.input.trim().match(coordRegex);
+      assert(!!match, `Coordinate string "${tc.input}" must match regex`);
+      const lat = parseFloat(match![1]);
+      const lng = parseFloat(match![3]);
+      assertEquals(lat, tc.expectedLat, 'Parsed lat matches');
+      assertEquals(lng, tc.expectedLng, 'Parsed lng matches');
+      assert(isValidLatLng(lat, lng), 'Parsed coords must be valid');
+    }
+
+    // Negative tests: regular addresses should not match
+    assert(!'SoHo, New York, NY'.match(coordRegex), 'City address must not match coordinate regex');
+    assert(!'70130'.match(coordRegex), 'ZIP code must not match coordinate regex');
+    passed++;
+  }
+
   console.log(`\n✅ ALL ${passed} OCCASION SCOUT RELIABILITY TESTS PASSED SUCCESSFULLY!`);
 }
 

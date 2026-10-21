@@ -79,24 +79,49 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     return text;
   };
 
-  const handleCopyLink = async () => {
+  const copyToClipboard = async (text: string): Promise<boolean> => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // Fall through to fallback
+    }
+
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.top = '0';
+      textarea.style.left = '0';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return successful;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const success = await copyToClipboard(shareUrl);
+    if (success) {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2500);
-    } catch {
-      // Fallback
     }
   };
 
   const handleCopySummary = async () => {
-    try {
-      const summary = generateTextSummary();
-      await navigator.clipboard.writeText(summary);
+    const summary = generateTextSummary();
+    const success = await copyToClipboard(summary);
+    if (success) {
       setSummaryCopied(true);
       setTimeout(() => setSummaryCopied(false), 2500);
-    } catch {
-      // Fallback
     }
   };
 
@@ -116,7 +141,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         url: shareUrl,
       });
     } catch {
-      // User cancelled or share failed
+      // User cancelled or share dismissed
     }
   };
 
@@ -165,12 +190,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 type="text"
                 readOnly
                 value={shareUrl}
-                className="w-full bg-white border border-[#DCDAD5] px-3.5 py-2.5 text-xs font-mono text-[#161616] select-all focus:outline-none focus:border-[#161616]"
+                className="w-full bg-white border border-[#DCDAD5] px-3.5 py-2.5 text-base sm:text-xs font-mono text-[#161616] select-all focus:outline-none focus:border-[#161616]"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-4 py-2.5 text-xs font-medium tracking-wider uppercase bg-[#161616] text-white hover:bg-[#333333] transition-colors shrink-0 flex items-center gap-1.5"
+                className="px-4 py-2.5 text-xs font-medium tracking-wider uppercase bg-[#161616] text-white hover:bg-[#333333] transition-colors shrink-0 flex items-center gap-1.5 min-h-[42px]"
               >
                 {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{linkCopied ? 'Copied' : 'Copy'}</span>

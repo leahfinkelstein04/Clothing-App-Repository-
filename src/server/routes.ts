@@ -2,13 +2,13 @@
  * Express API Router for Occasion Scout
  */
 
-import { Router, Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
 import { analyzeOccasionIntent, rankDiscoveredStores } from './gemini.ts';
 import { discoverStoresNearCoordinates, geocodeAddress, reverseGeocode } from './places.ts';
 import { isValidLatLng } from '../shared/geo.ts';
 import type { ScoutSearchRequest, ScoutSearchResponse } from '../shared/types.ts';
 
-export const apiRouter = Router();
+export const apiRouter = express.Router();
 
 // Health check
 apiRouter.get('/health', (_req: Request, res: Response) => {
@@ -20,16 +20,52 @@ apiRouter.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Geocode address, city, or ZIP code
+// Geocode address, city, or ZIP code (or reverse geocode coordinates)
 apiRouter.post('/geocode', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { address } = req.body as { address?: string };
+    const { address, lat, lng } = req.body as {
+      address?: string;
+      lat?: number | string;
+      lng?: number | string;
+    };
+
+    // If numerical or parseable lat/lng are provided, reverse geocode directly
+    const numLat = Number(lat);
+    const numLng = Number(lng);
+    if (!isNaN(numLat) && !isNaN(numLng) && isValidLatLng(numLat, numLng)) {
+      const formattedAddress = await reverseGeocode(numLat, numLng);
+      res.json({
+        lat: numLat,
+        lng: numLng,
+        formattedAddress,
+      });
+      return;
+    }
+
     if (!address || typeof address !== 'string' || !address.trim()) {
       res.status(400).json({ error: 'Please enter a valid city, neighborhood, address, or ZIP code.' });
       return;
     }
 
-    const result = await geocodeAddress(address);
+    const trimmed = address.trim();
+
+    // Check if address is a raw "lat, lng" coordinate pair
+    const coordMatch = trimmed.match(/^(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)$/);
+    if (coordMatch) {
+      const parsedLat = parseFloat(coordMatch[1]);
+      const parsedLng = parseFloat(coordMatch[3]);
+      if (isValidLatLng(parsedLat, parsedLng)) {
+        const formattedAddress = await reverseGeocode(parsedLat, parsedLng);
+        res.json({
+          lat: parsedLat,
+          lng: parsedLng,
+          formattedAddress,
+        });
+        return;
+      }
+    }
+
+    const result = await geocodeAddress(trimmed);
     res.json(result);
   } catch (err: unknown) {
     const error = err as Error & { isQuotaError?: boolean };

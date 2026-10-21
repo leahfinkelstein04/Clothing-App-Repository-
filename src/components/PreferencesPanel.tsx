@@ -208,7 +208,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({
             value={dressCode}
             onChange={(e) => onDressCodeChange(e.target.value)}
             placeholder="e.g. Cocktail Attire, Black Tie Optional, Smart Casual"
-            className="w-full bg-[#F7F6F3] border border-[#DCDAD5] px-3.5 py-2 text-xs text-[#161616] placeholder-[#888888] focus:outline-none focus:border-[#161616] transition-colors"
+            className="w-full bg-[#F7F6F3] border border-[#DCDAD5] px-3.5 py-2 text-base sm:text-xs text-[#161616] placeholder-[#888888] focus:outline-none focus:border-[#161616] transition-colors"
           />
         </div>
         <p className="text-xs text-[#777777] italic self-end pb-1">
